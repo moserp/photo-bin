@@ -1,0 +1,31 @@
+#!/usr/local/bin/ruby
+
+require 'fileutils'
+require 'find'
+
+SOURCE_LOCATION = '/media/EOS_DIGITAL'
+DESTINATION_BASE = '/home/moserp/pics/photos/master/'
+
+def output_directory_for source_file
+  file_time = File.mtime(source_file).strftime("%Y_%m_%d")
+  File.join(DESTINATION_BASE, file_time)
+end
+
+Find.find(SOURCE_LOCATION) do |source|
+  if File.file?(source)
+    output_directory = output_directory_for(source)
+    Dir.mkdir(output_directory) unless File.exists?(output_directory)
+
+    output_file_name =  File.basename(source).downcase.gsub(/img_/, 'img_01_')
+    output_file_path = File.join(output_directory, output_file_name)
+
+    if File.exists?(output_file_path)
+      puts "Skipping #{source}, #{output_file_path} already exists"
+      next
+    end
+
+    FileUtils.cp source, output_file_path
+    File.chmod 0444, output_file_path
+  end
+end
+

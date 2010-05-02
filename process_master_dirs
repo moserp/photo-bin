@@ -1,0 +1,34 @@
+#!/usr/local/bin/ruby
+
+
+require 'fileutils'
+include FileUtils
+
+SOURCE_BASE_DIRECTORY = '/home/moserp/pics/photos/master'
+DESTINATION_BASE_DIRECTORY = '/home/moserp/pics/photos/processed'
+
+ARGV.each do |directory|
+  current_source_directory = File.join(SOURCE_BASE_DIRECTORY, directory)
+  next unless File.exists? current_source_directory
+
+  output_directory = File.join(DESTINATION_BASE_DIRECTORY, directory)
+  Dir.mkdir(output_directory) unless File.exists?(output_directory)
+
+  Dir.glob(File.join current_source_directory, "*") do |source|
+    next unless File.file?(source)
+
+    puts "Processing #{source}"
+
+    case File.extname(source)
+    when ".cr2"
+      link =  File.join(output_directory, File.basename(source))
+      File.symlink source, link
+      `dcraw -v -w #{link}`
+      File.delete link
+    when ".jpg"
+      cp source, File.join(output_directory, File.basename(source))
+    else
+      puts "Ignoring #{source}, don't know how to handle #{File.extname(source)} files"
+    end
+  end
+end

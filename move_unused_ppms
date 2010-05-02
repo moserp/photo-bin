@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+#
+# This script is intended to move all .ppm files that are not used within an album
+# to a temporary directory for removal. The files are not actually deleted just incase...
+#
+
+PHOTOS_DIR = File.join '/', 'home', 'moserp', 'pics', 'photos'
+PROCESSED_DIR = File.join PHOTOS_DIR, 'processed'
+ALBUM_SOURCE_DIR = File.join PHOTOS_DIR, 'album_source'
+HOLDING_DIR =  File.join('/', 'home', 'moserp', 'scrap', 'holding')
+
+processed_files = Dir.glob File.join(PROCESSED_DIR, "**", "*.ppm")
+album_files = Dir.glob(File.join(ALBUM_SOURCE_DIR, "**", "*.ppm")).map {|file| File.readlink(file)}
+
+# convert relative path to absolute path
+album_files = album_files.collect { |file| file.sub(/.*\/processed/, PROCESSED_DIR)}
+
+
+files_to_move = processed_files.reject do |file| 
+  album_files.include? file
+end
+
+puts "Number of processed files: #{processed_files.size}"
+puts "Number of album source files: #{album_files.size}"
+puts "\tnote: images may appear in multiple albums, each occurance will be counted"
+puts  "Files to be moved (removed): #{files_to_move.size}"
+
+files_to_move.each do |file|
+  move_to = file.sub(PROCESSED_DIR, HOLDING_DIR)
+  `mkdir -p #{File.dirname(move_to)}`
+  `mv #{file}  #{move_to}`
+end
+
+puts "Files have been moved to '#{HOLDING_DIR}'. Remove manually after verifying no broken symlinks."
+puts %{You can verify there are no broken symlinks with:\n\t find #{ALBUM_SOURCE_DIR} -type l | (while read FN ; do test -e "$FN" || ls -ld "$FN"; done)}

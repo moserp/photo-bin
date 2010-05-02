@@ -1,0 +1,78 @@
+#!/usr/local/bin/ruby
+
+#
+# This script is intended to create the images making an album for display on
+# the web.
+#
+# Copyright (c) Paul Moser 2009.
+#
+
+# Location of pictures directory, everything else is under here
+pics_dir = "/home/moserp/pics/photos"
+
+# The directory containing all the album sources
+album_source = File.join pics_dir, "album_source"
+# The name of the album to generate
+album_name = ARGV[0]
+puts "Album source directory is #{album_source}"
+puts "Album name is #{album_name}"
+
+album_destination = File.join pics_dir, "album_web", album_name
+puts "Album destination is #{album_destination}"
+
+#
+# Recreate the directory of the album source under the album destination
+#
+pages = Dir.glob(File.join(album_source, album_name, "*")).select {|entry| File.directory?(entry)}
+Dir.mkdir album_destination unless File.exists? album_destination
+pages.each do |page|
+  Dir.mkdir File.join(album_destination, File.basename(page)) unless File.exists? File.join(album_destination, File.basename(page)) 
+end
+
+#
+# For every .ppm image in the album generate a JPEG and thumbnail
+#
+images = Dir.glob(File.join(album_source, album_name, "**", "*.ppm")).select {|entry| File.file?(entry)}
+images.each do |image|
+  puts "Processing: #{image}"
+
+  tmp_scaled_image = image.sub(File.join(album_source, album_name), album_destination)
+  output_scaled_image = File.join File.dirname(tmp_scaled_image), "#{File.basename(tmp_scaled_image, '.ppm')}.jpg"
+  output_thumbnail = File.join File.dirname(output_scaled_image), "#{File.basename(output_scaled_image, '.jpg')}-thumb.jpg"
+
+  if image =~ /-crop\.ppm$/
+    # cropped images should already be 50% the size of normal so just half it agin to get to 25%
+    system %(convert "#{image}" -resize 50% "#{tmp_scaled_image}")
+    resize = "20%"
+  elsif image =~ /-pano\.ppm$/
+    system %(convert "#{image}" -resize 25% "#{tmp_scaled_image}")
+    resize = "156" # hardcode to a fixed width, effectively the width of a normal landscape shot
+  else
+    system %(convert "#{image}" -resize 25% "#{tmp_scaled_image}")
+    resize = "20%"
+  end
+  system %(cjpeg -optimize -quality 95 "#{tmp_scaled_image}" > "#{output_scaled_image}")
+  system %(convert "#{output_scaled_image}" -resize #{resize}  "#{output_thumbnail}")
+
+  File.delete tmp_scaled_image
+end
+
+#
+# For every ixus*.jpg image in the album generate a JPEG and thumbnail
+#
+images = Dir.glob(File.join(album_source, album_name, "**", "ixus*.jpg")).select {|entry| File.file?(entry)}
+images.each do |image|
+  puts "Processing: #{image}"
+
+  output_scaled_image = image.sub(File.join(album_source, album_name), album_destination)
+  output_thumbnail = File.join File.dirname(output_scaled_image), "#{File.basename(output_scaled_image, '.jpg')}-thumb.jpg"
+
+  if image =~ /-pano.jpg$/
+    thumbnail_resize = '156' # hardcode to a fixed width, effectively the width of a normal landscape shot
+  else
+    thumbnail_resize = '20%'
+  end
+
+  system %(convert "#{image}" -resize 30% "#{output_scaled_image}")
+  system %(convert "#{output_scaled_image}" -resize #{thumbnail_resize} "#{output_thumbnail}")
+end
